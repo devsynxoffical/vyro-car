@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "destination": "/see-it-on-your-car/index.html" },
+    { "source": "/trial", "destination": "/see-it-on-your-car/index.html" },
+    { "source": "/cars/:path*", "destination": "/see-it-on-your-car/cars/:path*" },
+    { "source": "/wheel-overlays/:path*", "destination": "/see-it-on-your-car/wheel-overlays/:path*" },
+    { "source": "/source-renders-2k/:path*", "destination": "/see-it-on-your-car/source-renders-2k/:path*" },
+    { "source": "/dark", "destination": "/see-it-on-your-car/dark-version-v1.html" }
+  ]
+}
