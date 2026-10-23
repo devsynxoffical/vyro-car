@@ -1,0 +1,20 @@
+{
+  "name": "vyro-car-trial",
+  "version": "1.0.0",
+  "description": "Vyro-Car Trial - Virtual Wheel & Rim Studio (See It On Your Car)",
+  "private": true,
+  "scripts": {
+    "dev": "npx --yes serve -l 3000 see-it-on-your-car",
+    "start": "npx --yes serve -l 3000 see-it-on-your-car",
+    "serve": "npx --yes serve -l 3000 see-it-on-your-car",
+    "serve:root": "npx --yes serve -l 3000 ."
+  },
+  "keywords": [
+    "vyro-car",
+    "wheel-visualizer",
+    "car-configurator",
+    "topperformance"
+  ],
+  "author": "DEVSYNX",
+  "license": "UNLICENSED"
+}
