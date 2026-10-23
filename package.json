@@ -4,11 +4,10 @@
   "description": "Vyro-Car Trial - Virtual Wheel & Rim Studio (See It On Your Car)",
   "private": true,
   "scripts": {
-    "build": "echo 'Static studio build ready'",
+    "build": "echo 'Vyro-Car Trial static build ready'",
     "dev": "npx --yes serve -l 3000 see-it-on-your-car",
     "start": "npx --yes serve -l 3000 see-it-on-your-car",
-    "serve": "npx --yes serve -l 3000 see-it-on-your-car",
-    "serve:root": "npx --yes serve -l 3000 ."
+    "serve": "npx --yes serve -l 3000 see-it-on-your-car"
   },
   "keywords": [
     "vyro-car",
