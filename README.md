@@ -36,12 +36,12 @@ Or open `see-it-on-your-car/index.html` directly in any web browser.
    - Range Rover & Land Rover Defender 110
    - Toyota Land Cruiser 70
 
-2. **Expanded 18 Wheel Catalog**:
-   - Covers 6x139.7, 6x135, 5x127, 5x130, 5x120, and 5x150 bolt patterns.
+2. **Curated Wheel Catalog**:
+   - Features Weld Racing Laguna 6, Weld Solana Drag, Vossen HF6-3 Hybrid Forged, fifteen52 Neito HD, and fifteen52 Analog HD.
    - Sourced directly from Top Performance Qatar with exact QAR pricing.
    - Keyed transparent spoke overlays revealing brake discs and custom calipers.
    - Real-time bolt pattern compatibility indicator (e.g., *Fits LC300* vs *Does not fit*).
-   - Fast filter pills by bolt pattern & fitment.
+   - Fast filter pills by fitment and bolt pattern.
 
 3. **Customization & Controls**:
    - **Interactive Split Slider**: Before & after stock vs build comparison slider.
