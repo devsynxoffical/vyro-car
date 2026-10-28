@@ -381,9 +381,13 @@ const ease=t=>1-Math.pow(1-t,3);
 const rimOf=(car,i)=>car.rims?car.rims[i]:car.rim;
 const sqOf=(car,i)=>car.sq?car.sq[i]:1;
 /* unsquashed tyre cover for angled photos: the real tyre is wider than the squashed overlay */
-function drawCover(c,x,y,R,sq){ const rx=R*(0.55+0.45*sq)*1.03, ry=R*1.03; let g=c.createRadialGradient(x,y,0,x,y,1);
-  c.save(); c.translate(x,y); c.scale(rx,ry); g.addColorStop(0,'#17181a'); g.addColorStop(.85,'#17181a'); g.addColorStop(1,'rgba(23,24,26,0)');
-  c.fillStyle=g; c.beginPath(); c.arc(0,0,1,0,7); c.fill(); c.restore(); }
+/* A wheel seen at an angle shows its face as an ellipse plus the rim barrel on the side away from
+   the camera (dir = -1 left, +1 right). The cover hides both so the stock wheel cannot peek out. */
+function drawCover(c,x,y,R,sq,dir){ const barrel=R*0.5*Math.sqrt(Math.max(0,1-sq*sq)), rx=(R*sq+barrel/2)*1.04+2, ry=R*1.015+1, cx=x+dir*barrel/2;
+  let g=c.createRadialGradient(0,0,0,0,0,1); g.addColorStop(0,'#17181a'); g.addColorStop(.88,'#17181a'); g.addColorStop(1,'rgba(23,24,26,0)');
+  c.save(); c.translate(cx,y); c.scale(rx,ry); c.fillStyle=g; c.beginPath(); c.arc(0,0,1,0,7); c.fill(); c.restore();
+  /* faint barrel shading so the new wheel reads as 3D too */
+  if(barrel>1){ c.save(); c.globalAlpha=.35; c.fillStyle='#0b0c0d'; c.beginPath(); c.ellipse(x+dir*barrel*0.5,y,barrel*0.6,R*0.86,0,0,7); c.fill(); c.restore(); } }
 
 function setupCanvas(cv){ const d=Math.min(2,window.devicePixelRatio||1); cv.width=CW*d; cv.height=CH*d; const x=cv.getContext('2d'); x.setTransform(d,0,0,d,0,0); return x; }
 const ctxS=setupCanvas(cvS), ctxB=setupCanvas(cvB);
@@ -423,13 +427,15 @@ function render(c,variant){
   c.drawImage(im,ox,oy,w,h);
   if(variant!=='build') return;
   const p=P(), roll=(1-ease(S.roll))*-2.4;
+  /* the bigger wheel is nearer the camera; barrels show on the side pointing away from it */
+  const near=rimOf(car,0)>=rimOf(car,1)?0:1, dir=Math.sign(car.hubs[1-near][0]-car.hubs[near][0])||1;
   car.hubs.forEach((hb,i)=>{
     const x=ox+hb[0]*s, y=oy+hb[1]*s, r0=rimOf(car,i)*s, sq=sqOf(car,i);
     const cover=car.rims?r0*(car.tr||1.28):car.tire*s;
     /* tyre outer size stays the same, a bigger rim only grows inside it */
     const nr=Math.min(r0*(p.rim+1)/(car.origRim+1), cover*0.94);
     const tint=car.id==='own'?localTint(c,x,y,r0)-(1-sq)*0.35:0;
-    if(sq<1) drawCover(c,x,y,Math.max(cover,nr),sq);
+    if(sq<1) drawCover(c,x,y,Math.max(cover,nr),sq,dir);
     c.save(); c.translate(x,y); c.scale(sq,1); c.translate(-x,-y);
     drawWheel(c,x,y,nr,cover,imgs[p.id],CALS[S.cal].c,p.rot[i]+roll,tint);
     c.restore();
