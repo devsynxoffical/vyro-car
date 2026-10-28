@@ -225,9 +225,13 @@ form .f{margin-bottom:10px}
             <p class="note" style="margin:6px 0 10px">Drag the rings onto the wheel centers and match each size to the rim edge. Scroll on a ring to resize it.</p>
             <div class="row">
               <label class="f" for="mr0">Front rim size<input type="range" id="mr0" min="20" max="260" value="80"></label>
-              <label class="f" for="mr1">Rear rim size<input type="range" id="mr1" min="20" max="260" value="80"></label>
+              <label class="f" for="sq0">Front wheel angle<input type="range" id="sq0" min="30" max="100" value="100"></label>
             </div>
-            <label class="f" for="tilt" style="margin-top:10px">Photo angle (wheel squash)<input type="range" id="tilt" min="55" max="100" value="100"></label>
+            <div class="row" style="margin-top:8px">
+              <label class="f" for="mr1">Rear rim size<input type="range" id="mr1" min="20" max="260" value="80"></label>
+              <label class="f" for="sq1">Rear wheel angle<input type="range" id="sq1" min="30" max="100" value="100"></label>
+            </div>
+            <p class="note" style="margin:8px 0 0">Angle: 100 is a flat side view, lower it when the photo is taken from the front or rear corner.</p>
             <div class="row" style="margin-top:10px">
               <label class="f" for="curRim">Current rim (inch)
                 <select id="curRim"><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option><option>21</option><option>22</option></select>
@@ -374,6 +378,11 @@ const C=()=>S.car==='own'?S.own:CARS.find(c=>c.id===S.car);
 const ease=t=>1-Math.pow(1-t,3);
 /* per-wheel rim radius; demo vehicles carry one rim value, uploads can differ front to rear */
 const rimOf=(car,i)=>car.rims?car.rims[i]:car.rim;
+const sqOf=(car,i)=>car.sq?car.sq[i]:1;
+/* unsquashed tyre cover for angled photos: the real tyre is wider than the squashed overlay */
+function drawCover(c,x,y,R,sq){ const rx=R*(0.55+0.45*sq)*1.06, ry=R*1.06; let g=c.createRadialGradient(x,y,0,x,y,1);
+  c.save(); c.translate(x,y); c.scale(rx,ry); g.addColorStop(0,'#17181a'); g.addColorStop(.85,'#17181a'); g.addColorStop(1,'rgba(23,24,26,0)');
+  c.fillStyle=g; c.beginPath(); c.arc(0,0,1,0,7); c.fill(); c.restore(); }
 
 function setupCanvas(cv){ const d=Math.min(2,window.devicePixelRatio||1); cv.width=CW*d; cv.height=CH*d; const x=cv.getContext('2d'); x.setTransform(d,0,0,d,0,0); return x; }
 const ctxS=setupCanvas(cvS), ctxB=setupCanvas(cvB);
@@ -411,12 +420,14 @@ function render(c,variant){
   const im=car.im, s=Math.min(CW/im.width,CH/im.height), w=im.width*s, h=im.height*s, ox=(CW-w)/2, oy=(CH-h)/2;
   c.drawImage(im,ox,oy,w,h);
   if(variant!=='build') return;
-  const p=P(), roll=(1-ease(S.roll))*-2.4, sq=car.squash||1;
+  const p=P(), roll=(1-ease(S.roll))*-2.4;
   car.hubs.forEach((hb,i)=>{
-    const x=ox+hb[0]*s, y=oy+hb[1]*s, r0=rimOf(car,i)*s, nr=r0*(p.rim+1)/(car.origRim+1);
-    const tint=car.id==='own'?localTint(c,x,y,r0):0;
+    const x=ox+hb[0]*s, y=oy+hb[1]*s, r0=rimOf(car,i)*s, nr=r0*(p.rim+1)/(car.origRim+1), sq=sqOf(car,i);
+    const cover=car.rims?r0/0.7:car.tire*s;
+    const tint=car.id==='own'?localTint(c,x,y,r0)-(1-sq)*0.35:0;
+    if(sq<1) drawCover(c,x,y,Math.max(cover,nr),sq);
     c.save(); c.translate(x,y); c.scale(sq,1); c.translate(-x,-y);
-    drawWheel(c,x,y,nr,car.rims?r0/0.7:car.tire*s,imgs[p.id],CALS[S.cal].c,p.rot[i]+roll,tint);
+    drawWheel(c,x,y,nr,cover,imgs[p.id],CALS[S.cal].c,p.rot[i]+roll,tint);
     c.restore();
   });
 }
@@ -433,7 +444,7 @@ function build(){
     b.innerHTML=`<img alt="" src="${c.thumb}"><b>${c.name}</b><small>${c.bolt}</small>`;
     b.onclick=()=>{ S.car=c.id; S.adj=false; sync(); draw(); scan('Fitting '+P().name); }; st.append(b); });
   const up=document.createElement('button'); up.className='vc up'; up.dataset.id='own';
-  up.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><b>Your own photo</b><small>Side view</small>`;
+  up.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><b>Your own photo</b><small>Flat side view, both wheels visible</small>`;
   up.onclick=()=>{ if(S.own&&S.car!=='own'){ S.car='own'; S.adj=false; sync(); draw(); scan('Fitting '+P().name); } else $('#file').click(); }; st.append(up);
   const pr=$('#prods'); PRODUCTS.forEach(p=>{ const b=document.createElement('button'); b.className='prod'; b.dataset.id=p.id;
     b.innerHTML=`<span class="thumb"><img alt="" src="${IMG[p.id]}"></span><span style="min-width:0"><span class="nm">${p.name}</span><span class="sp">${p.spec}</span><span class="sp">${p.finish}</span><span class="pr"><b>${fmt(p.price)}</b><span class="mini"></span></span></span>`;
@@ -479,11 +490,10 @@ function sync(){
   const h=$('#handle'); h.style.left=S.split+'%'; h.setAttribute('aria-valuenow',Math.round(S.split));
   $('#adjBox').hidden=!S.adj; $('#adjBtn').hidden=S.adj;
   if(car&&car.im){ const im=car.im, s=Math.min(CW/im.width,CH/im.height), ox=(CW-im.width*s)/2, oy=(CH-im.height*s)/2;
-    const sq=car.squash||1;
-    ['#m0','#m1'].forEach((id,i)=>{ const m=$(id); m.hidden=!(S.adj&&S.view!=='sbs'); const r=rimOf(car,i)*s;
+    ['#m0','#m1'].forEach((id,i)=>{ const m=$(id); m.hidden=!(S.adj&&S.view!=='sbs'); const r=rimOf(car,i)*s, sq=sqOf(car,i);
       m.style.left=((ox+car.hubs[i][0]*s)/CW*100)+'%'; m.style.top=((oy+car.hubs[i][1]*s)/CH*100)+'%'; m.style.width=(2*r*sq/CW*100)+'%'; m.style.height=(2*r/CH*100)+'%';
-      $('#mr'+i).value=Math.round(r); });
-    $('#tilt').value=Math.round(sq*100); $('#curRim').value=car.origRim; $('#changePhoto').hidden=!own; }
+      $('#mr'+i).value=Math.round(r); $('#sq'+i).value=Math.round(sq*100); });
+    $('#curRim').value=car.origRim; $('#changePhoto').hidden=!own; }
   const rows=[['Vehicle',car?car.name:'Your photo'],['Wheels',p.name],['Size',p.spec],['Finish',p.finish],['Calipers',CALS[S.cal].name]];
   $('#sum').innerHTML=rows.map(([k,x])=>`<dt>${k}</dt><dd>${x}</dd>`).join('');
   $('#total').textContent=fmt(p.price*4);
@@ -508,7 +518,9 @@ function scaleOf(car){ const im=car.im; return Math.min(CW/im.width,CH/im.height
 function setRim(car,i,px){ if(!car.rims) car.rims=[car.rim,car.rim]; car.rims[i]=Math.max(20,Math.min(260,px))/scaleOf(car); car.rim=car.rims[0]; car.tire=car.rim/0.7; }
 $('#mr0').oninput=e=>{ setRim(C(),0,+e.target.value); sync(); render(ctxB,'build'); };
 $('#mr1').oninput=e=>{ setRim(C(),1,+e.target.value); sync(); render(ctxB,'build'); };
-$('#tilt').oninput=e=>{ C().squash=+e.target.value/100; sync(); render(ctxB,'build'); };
+function setSq(car,i,v){ if(!car.sq) car.sq=[1,1]; car.sq[i]=Math.max(.3,Math.min(1,v)); }
+$('#sq0').oninput=e=>{ setSq(C(),0,+e.target.value/100); sync(); render(ctxB,'build'); };
+$('#sq1').oninput=e=>{ setSq(C(),1,+e.target.value/100); sync(); render(ctxB,'build'); };
 $('#changePhoto').onclick=()=>$('#file').click();
 $('#curRim').onchange=e=>{ C().origRim=+e.target.value; render(ctxB,'build'); };
 ['#m0','#m1'].forEach((id,i)=>{ const m=$(id); let d=false;
@@ -528,8 +540,8 @@ function useOwnPhoto(im){
   S.own={id:'own',name:'Your vehicle',short:'your car',bolt:null,im,
     hubs:keep?keep.hubs:[[im.width*.2,im.height*.72],[im.width*.8,im.height*.72]],
     rims:keep?keep.rims:[im.height*.09,im.height*.09], rim:keep?keep.rim:im.height*.09, tire:keep?keep.tire:im.height*.128,
-    squash:keep?keep.squash:1, origRim:keep?keep.origRim:18};
-  S.car='own'; S.adj=true; if(S.view==='sbs') S.view='split'; sync(); draw(); scan('Place the rings on your wheels');
+    sq:keep?keep.sq:[1,1], origRim:keep?keep.origRim:18};
+  S.car='own'; S.adj=true; if(S.view==='sbs') S.view='split'; sync(); draw(); scan('Drag the rings onto both wheels, then match size and angle');
 }
 $('#file').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
   if(!f.type.startsWith('image/')&&!isHeic(f)) return toast('Use a JPG, PNG or HEIC photo of your car.');
