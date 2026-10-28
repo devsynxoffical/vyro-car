@@ -75,7 +75,7 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:16p
 .scan.run{animation:scan 1s cubic-bezier(.6,.05,.3,1) forwards}
 @keyframes scan{0%{left:-160px;opacity:1}90%{opacity:1}100%{left:100%;opacity:0}}
 .scanmsg{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:3;font-size:12px;font-weight:500;background:rgba(255,255,255,.95);border:1px solid var(--line);color:var(--fg);padding:5px 12px;border-radius:999px;white-space:nowrap;box-shadow:0 2px 10px rgba(17,19,24,.08)}
-.marker{position:absolute;z-index:4;transform:translate(-50%,-50%);aspect-ratio:1;border-radius:50%;border:2px dashed var(--accent);background:rgba(232,56,26,.06);cursor:grab;touch-action:none}
+.marker{position:absolute;z-index:4;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed var(--accent);background:rgba(232,56,26,.06);cursor:grab;touch-action:none}
 .marker::before,.marker::after{content:"";position:absolute;background:var(--accent);left:50%;top:50%;transform:translate(-50%,-50%)}
 .marker::before{width:20px;height:2px}.marker::after{width:2px;height:20px}
 .marker span{position:absolute;top:-24px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;background:var(--accent);color:#fff;padding:2px 7px;border-radius:4px;white-space:nowrap}
@@ -222,14 +222,19 @@ form .f{margin-bottom:10px}
         <div class="adj">
           <button class="linkbtn" id="adjBtn" type="button">Adjust wheel position</button>
           <div id="adjBox" hidden>
-            <p class="note" style="margin:6px 0 10px">Drag the rings onto the wheel centers and match the size to the rim edge.</p>
-            <label class="f" for="mr">Rim size on photo<input type="range" id="mr" min="20" max="200" value="80"></label>
+            <p class="note" style="margin:6px 0 10px">Drag the rings onto the wheel centers and match each size to the rim edge. Scroll on a ring to resize it.</p>
+            <div class="row">
+              <label class="f" for="mr0">Front rim size<input type="range" id="mr0" min="20" max="260" value="80"></label>
+              <label class="f" for="mr1">Rear rim size<input type="range" id="mr1" min="20" max="260" value="80"></label>
+            </div>
+            <label class="f" for="tilt" style="margin-top:10px">Photo angle (wheel squash)<input type="range" id="tilt" min="55" max="100" value="100"></label>
             <div class="row" style="margin-top:10px">
               <label class="f" for="curRim">Current rim (inch)
                 <select id="curRim"><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option><option>21</option><option>22</option></select>
               </label>
               <button class="btn g" id="adjDone" type="button" style="padding:9px 14px;margin-top:18px">Done</button>
             </div>
+            <button class="linkbtn" id="changePhoto" type="button" style="margin-top:12px" hidden>Change photo</button>
           </div>
         </div>
       </div>
@@ -250,7 +255,7 @@ form .f{margin-bottom:10px}
 
   <p class="credits">Vyro-Car Trial · Demo vehicles are AI studio renders made for this trial. Wheel images are the store's own product photos. Prices from topperformance.qa on 23 Oct 2026.</p>
 </div>
-<input type="file" id="file" accept="image/*" hidden>
+<input type="file" id="file" accept="image/*,.heic,.heif" hidden>
 
 <div class="modal" id="leadM" hidden role="dialog" aria-modal="true" aria-labelledby="leadH">
   <div class="sheet">
@@ -367,12 +372,21 @@ const fmt=n=>'QAR '+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFra
 const P=()=>PRODUCTS.find(p=>p.id===S.prod);
 const C=()=>S.car==='own'?S.own:CARS.find(c=>c.id===S.car);
 const ease=t=>1-Math.pow(1-t,3);
+/* per-wheel rim radius; demo vehicles carry one rim value, uploads can differ front to rear */
+const rimOf=(car,i)=>car.rims?car.rims[i]:car.rim;
 
 function setupCanvas(cv){ const d=Math.min(2,window.devicePixelRatio||1); cv.width=CW*d; cv.height=CH*d; const x=cv.getContext('2d'); x.setTransform(d,0,0,d,0,0); return x; }
 const ctxS=setupCanvas(cvS), ctxB=setupCanvas(cvB);
 
-function drawWheel(c,x,y,rim,cover,img,cal,rot){
-  c.fillStyle='#17181a'; c.beginPath(); c.arc(x,y,Math.max(cover,rim)+1,0,7); c.fill();
+function drawWheel(c,x,y,rim,cover,img,cal,rot,tint){
+  const R=Math.max(cover,rim)+1;
+  /* soft ground shadow so the wheel sits in the photo instead of floating on it */
+  c.save(); c.globalAlpha=.45; let sh=c.createRadialGradient(x,y+R*.92,R*.15,x,y+R*.92,R*1.1);
+  sh.addColorStop(0,'rgba(0,0,0,.55)'); sh.addColorStop(1,'rgba(0,0,0,0)'); c.fillStyle=sh;
+  c.beginPath(); c.ellipse(x,y+R*.92,R*1.15,R*.28,0,0,7); c.fill(); c.restore();
+  /* feathered tyre disc: solid inside, fades over the last 6% so the photo edge blends */
+  let cg=c.createRadialGradient(x,y,R*.9,x,y,R*1.06); cg.addColorStop(0,'#17181a'); cg.addColorStop(.7,'#17181a'); cg.addColorStop(1,'rgba(23,24,26,0)');
+  c.fillStyle=cg; c.beginPath(); c.arc(x,y,R*1.06,0,7); c.fill();
   c.strokeStyle='rgba(255,255,255,.06)'; c.lineWidth=Math.max(2,cover*.06); c.beginPath(); c.arc(x,y,(Math.max(cover,rim)+rim)/2+1,-2.7,-1.7); c.stroke();
   c.fillStyle='#070708'; c.beginPath(); c.arc(x,y,rim,0,7); c.fill();
   let g=c.createRadialGradient(x-rim*.2,y-rim*.2,rim*.1,x,y,rim*.8); g.addColorStop(0,'#7a7d83'); g.addColorStop(1,'#34363a');
@@ -382,7 +396,14 @@ function drawWheel(c,x,y,rim,cover,img,cal,rot){
   c.fillStyle=cal; c.beginPath(); c.arc(x,y,rim*.86,a-.44,a+.44); c.arc(x,y,rim*.5,a+.44,a-.44,true); c.closePath(); c.fill();
   c.strokeStyle='rgba(255,255,255,.3)'; c.lineWidth=Math.max(1,rim*.025); c.beginPath(); c.arc(x,y,rim*.83,a-.38,a+.1); c.stroke();
   c.save(); c.translate(x,y); c.rotate(rot); c.drawImage(img,-rim,-rim,rim*2,rim*2); c.restore();
+  /* match the photo's lighting: darken or lift the wheel toward the local brightness */
+  if(tint!==undefined&&Math.abs(tint)>0.02){ c.save(); c.beginPath(); c.arc(x,y,rim,0,7); c.clip();
+    c.globalCompositeOperation=tint<0?'multiply':'screen'; c.globalAlpha=Math.min(.6,Math.abs(tint));
+    c.fillStyle=tint<0?'#000':'#fff'; c.fillRect(x-rim,y-rim,rim*2,rim*2); c.restore(); }
 }
+/* average luminance of the photo in a ring just outside the wheel, -1..1 relative to neutral */
+function localTint(c,x,y,r){ try{ const t=c.getTransform(); x=x*t.a+t.e; y=y*t.d+t.f; r=r*t.a; const d=c.getImageData(Math.max(0,x-r*1.3)|0,Math.max(0,y-r*1.3)|0,(r*2.6)|0,(r*2.6)|0).data; let sum=0,n=0;
+    for(let i=0;i<d.length;i+=16){ sum+=d[i]*.299+d[i+1]*.587+d[i+2]*.114; n++; } return n?((sum/n)/255-0.55)*0.9:0; }catch(e){ return 0; } }
 function render(c,variant){
   const car=C(); c.clearRect(0,0,CW,CH);
   c.fillStyle='#eef0f3'; c.fillRect(0,0,CW,CH);
@@ -390,10 +411,13 @@ function render(c,variant){
   const im=car.im, s=Math.min(CW/im.width,CH/im.height), w=im.width*s, h=im.height*s, ox=(CW-w)/2, oy=(CH-h)/2;
   c.drawImage(im,ox,oy,w,h);
   if(variant!=='build') return;
-  const p=P(), roll=(1-ease(S.roll))*-2.4;
+  const p=P(), roll=(1-ease(S.roll))*-2.4, sq=car.squash||1;
   car.hubs.forEach((hb,i)=>{
-    const x=ox+hb[0]*s, y=oy+hb[1]*s, r0=car.rim*s, nr=r0*(p.rim+1)/(car.origRim+1);
-    drawWheel(c,x,y,nr,car.tire*s,imgs[p.id],CALS[S.cal].c,p.rot[i]+roll);
+    const x=ox+hb[0]*s, y=oy+hb[1]*s, r0=rimOf(car,i)*s, nr=r0*(p.rim+1)/(car.origRim+1);
+    const tint=car.id==='own'?localTint(c,x,y,r0):0;
+    c.save(); c.translate(x,y); c.scale(sq,1); c.translate(-x,-y);
+    drawWheel(c,x,y,nr,car.rims?r0/0.7:car.tire*s,imgs[p.id],CALS[S.cal].c,p.rot[i]+roll,tint);
+    c.restore();
   });
 }
 function draw(){ render(ctxS,'stock'); render(ctxB,'build'); }
@@ -410,7 +434,7 @@ function build(){
     b.onclick=()=>{ S.car=c.id; S.adj=false; sync(); draw(); scan('Fitting '+P().name); }; st.append(b); });
   const up=document.createElement('button'); up.className='vc up'; up.dataset.id='own';
   up.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><b>Your own photo</b><small>Side view</small>`;
-  up.onclick=()=>$('#file').click(); st.append(up);
+  up.onclick=()=>{ if(S.own&&S.car!=='own'){ S.car='own'; S.adj=false; sync(); draw(); scan('Fitting '+P().name); } else $('#file').click(); }; st.append(up);
   const pr=$('#prods'); PRODUCTS.forEach(p=>{ const b=document.createElement('button'); b.className='prod'; b.dataset.id=p.id;
     b.innerHTML=`<span class="thumb"><img alt="" src="${IMG[p.id]}"></span><span style="min-width:0"><span class="nm">${p.name}</span><span class="sp">${p.spec}</span><span class="sp">${p.finish}</span><span class="pr"><b>${fmt(p.price)}</b><span class="mini"></span></span></span>`;
     b.onclick=()=>{ if(S.prod===p.id) return; S.prod=p.id; sync(); roll(); scan('Fitting '+p.name); }; pr.append(b); });
@@ -455,9 +479,11 @@ function sync(){
   const h=$('#handle'); h.style.left=S.split+'%'; h.setAttribute('aria-valuenow',Math.round(S.split));
   $('#adjBox').hidden=!S.adj; $('#adjBtn').hidden=S.adj;
   if(car&&car.im){ const im=car.im, s=Math.min(CW/im.width,CH/im.height), ox=(CW-im.width*s)/2, oy=(CH-im.height*s)/2;
-    ['#m0','#m1'].forEach((id,i)=>{ const m=$(id); m.hidden=!(S.adj&&S.view!=='sbs');
-      m.style.left=((ox+car.hubs[i][0]*s)/CW*100)+'%'; m.style.top=((oy+car.hubs[i][1]*s)/CH*100)+'%'; m.style.width=(2*car.rim*s/CW*100)+'%'; });
-    $('#mr').value=Math.round(car.rim*s); $('#curRim').value=car.origRim; }
+    const sq=car.squash||1;
+    ['#m0','#m1'].forEach((id,i)=>{ const m=$(id); m.hidden=!(S.adj&&S.view!=='sbs'); const r=rimOf(car,i)*s;
+      m.style.left=((ox+car.hubs[i][0]*s)/CW*100)+'%'; m.style.top=((oy+car.hubs[i][1]*s)/CH*100)+'%'; m.style.width=(2*r*sq/CW*100)+'%'; m.style.height=(2*r/CH*100)+'%';
+      $('#mr'+i).value=Math.round(r); });
+    $('#tilt').value=Math.round(sq*100); $('#curRim').value=car.origRim; $('#changePhoto').hidden=!own; }
   const rows=[['Vehicle',car?car.name:'Your photo'],['Wheels',p.name],['Size',p.spec],['Finish',p.finish],['Calipers',CALS[S.cal].name]];
   $('#sum').innerHTML=rows.map(([k,x])=>`<dt>${k}</dt><dd>${x}</dd>`).join('');
   $('#total').textContent=fmt(p.price*4);
@@ -479,7 +505,11 @@ function sync(){
 $('#adjBtn').onclick=()=>{ S.adj=true; if(S.view==='sbs') S.view='split'; sync(); };
 $('#adjDone').onclick=()=>{ S.adj=false; sync(); };
 function scaleOf(car){ const im=car.im; return Math.min(CW/im.width,CH/im.height); }
-$('#mr').oninput=e=>{ const car=C(); car.rim=+e.target.value/scaleOf(car); car.tire=car.rim/0.7; sync(); render(ctxB,'build'); };
+function setRim(car,i,px){ if(!car.rims) car.rims=[car.rim,car.rim]; car.rims[i]=Math.max(20,Math.min(260,px))/scaleOf(car); car.rim=car.rims[0]; car.tire=car.rim/0.7; }
+$('#mr0').oninput=e=>{ setRim(C(),0,+e.target.value); sync(); render(ctxB,'build'); };
+$('#mr1').oninput=e=>{ setRim(C(),1,+e.target.value); sync(); render(ctxB,'build'); };
+$('#tilt').oninput=e=>{ C().squash=+e.target.value/100; sync(); render(ctxB,'build'); };
+$('#changePhoto').onclick=()=>$('#file').click();
 $('#curRim').onchange=e=>{ C().origRim=+e.target.value; render(ctxB,'build'); };
 ['#m0','#m1'].forEach((id,i)=>{ const m=$(id); let d=false;
   m.addEventListener('pointerdown',e=>{ d=true; m.setPointerCapture(e.pointerId); e.stopPropagation(); });
@@ -487,11 +517,27 @@ $('#curRim').onchange=e=>{ C().origRim=+e.target.value; render(ctxB,'build'); };
     const ox=(CW-im.width*s)/2, oy=(CH-im.height*s)/2, x=(e.clientX-r.left)/r.width*CW, y=(e.clientY-r.top)/r.height*CH;
     car.hubs[i]=[(x-ox)/s,(y-oy)/s]; sync(); render(ctxB,'build'); });
   m.addEventListener('pointerup',()=>d=false);
+  m.addEventListener('wheel',e=>{ e.preventDefault(); const car=C(); setRim(car,i,rimOf(car,i)*scaleOf(car)*(e.deltaY<0?1.05:0.95)); sync(); render(ctxB,'build'); },{passive:false});
 });
-$('#file').onchange=e=>{ const f=e.target.files[0]; if(!f||!f.type.startsWith('image/')) return toast('Use a JPG or PNG photo of your car.');
-  const r=new FileReader(); r.onload=()=>{ const im=new Image(); im.onload=()=>{
-    S.own={id:'own',name:'Your vehicle',short:'your car',bolt:null,im,hubs:[[im.width*.2,im.height*.72],[im.width*.8,im.height*.72]],rim:im.height*.09,tire:im.height*.128,origRim:18};
-    S.car='own'; S.adj=true; if(S.view==='sbs') S.view='split'; sync(); draw(); scan('Place the rings on your wheels'); }; im.src=r.result; }; r.readAsDataURL(f); };
+const HEIC_LIB='https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js';
+function isHeic(f){ return /heic|heif/i.test(f.type)||/\.(heic|heif)$/i.test(f.name); }
+function loadHeicLib(){ return window.heic2any?Promise.resolve():new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src=HEIC_LIB; sc.onload=res; sc.onerror=()=>rej(new Error('heic lib')); document.head.append(sc); }); }
+async function fileToBlob(f){ if(!isHeic(f)) return f; toast('Converting iPhone photo…'); await loadHeicLib(); const out=await heic2any({blob:f,toType:'image/jpeg',quality:.92}); return Array.isArray(out)?out[0]:out; }
+function useOwnPhoto(im){
+  const keep=S.own&&S.own.im&&S.own.im.width===im.width&&S.own.im.height===im.height?S.own:null;
+  S.own={id:'own',name:'Your vehicle',short:'your car',bolt:null,im,
+    hubs:keep?keep.hubs:[[im.width*.2,im.height*.72],[im.width*.8,im.height*.72]],
+    rims:keep?keep.rims:[im.height*.09,im.height*.09], rim:keep?keep.rim:im.height*.09, tire:keep?keep.tire:im.height*.128,
+    squash:keep?keep.squash:1, origRim:keep?keep.origRim:18};
+  S.car='own'; S.adj=true; if(S.view==='sbs') S.view='split'; sync(); draw(); scan('Place the rings on your wheels');
+}
+$('#file').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  if(!f.type.startsWith('image/')&&!isHeic(f)) return toast('Use a JPG, PNG or HEIC photo of your car.');
+  let blob; try{ blob=await fileToBlob(f); }catch(err){ return toast('Could not convert this photo. Please export it as JPG and try again.'); }
+  const url=URL.createObjectURL(blob), im=new Image();
+  im.onload=()=>{ URL.revokeObjectURL(url); if(im.width<300||im.height<200) return toast('Photo is too small. Use at least 800px wide.'); useOwnPhoto(im); };
+  im.onerror=()=>{ URL.revokeObjectURL(url); toast('This image could not be read. Try a JPG or PNG.'); };
+  im.src=url; };
 
 function openM(id){ $(id).hidden=false; const f=$(id).querySelector('input,button'); f&&f.focus(); }
 function closeM(){ document.querySelectorAll('.modal').forEach(m=>m.hidden=true); }
