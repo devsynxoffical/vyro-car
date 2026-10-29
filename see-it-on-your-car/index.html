@@ -231,7 +231,7 @@ form .f{margin-bottom:10px}
               <label class="f" for="mr1">Rear rim size<input type="range" id="mr1" min="20" max="260" value="80"></label>
               <label class="f" for="sq1">Rear wheel angle<input type="range" id="sq1" min="30" max="100" value="100"></label>
             </div>
-            <label class="f" for="tr" style="margin-top:8px">Tyre height (low profile → off-road)<input type="range" id="tr" min="115" max="150" value="128"></label>
+            <label class="f" for="tr" style="margin-top:8px">Cover around rim (tight → wide)<input type="range" id="tr" min="100" max="140" value="112"></label>
             <p class="note" style="margin:8px 0 0">Angle: 100 is a flat side view, lower it when the photo is taken from the front or rear corner.</p>
             <div class="row" style="margin-top:10px">
               <label class="f" for="curRim">Current rim (inch)
@@ -383,21 +383,21 @@ const sqOf=(car,i)=>car.sq?car.sq[i]:1;
 /* unsquashed tyre cover for angled photos: the real tyre is wider than the squashed overlay */
 /* A wheel seen at an angle shows its face as an ellipse plus the rim barrel on the side away from
    the camera (dir = -1 left, +1 right). The cover hides both so the stock wheel cannot peek out. */
-function drawCover(c,x,y,R,sq,dir){ const barrel=R*0.5*Math.sqrt(Math.max(0,1-sq*sq)), rx=(R*sq+barrel/2)*1.04+2, ry=R*1.015+1, cx=x+dir*barrel/2;
-  let g=c.createRadialGradient(0,0,0,0,0,1); g.addColorStop(0,'#17181a'); g.addColorStop(.88,'#17181a'); g.addColorStop(1,'rgba(23,24,26,0)');
+function drawCover(c,x,y,R,sq,dir){ const barrel=R*0.28*Math.sqrt(Math.max(0,1-sq*sq)), rx=(R*sq+barrel/2)*1.03+1, ry=R*1.015+1, cx=x+dir*barrel/2;
+  let g=c.createRadialGradient(0,0,0,0,0,1); g.addColorStop(0,'#17181a'); g.addColorStop(.8,'#17181a'); g.addColorStop(1,'rgba(23,24,26,0)');
   c.save(); c.translate(cx,y); c.scale(rx,ry); c.fillStyle=g; c.beginPath(); c.arc(0,0,1,0,7); c.fill(); c.restore();
   /* faint barrel shading so the new wheel reads as 3D too */
-  if(barrel>1){ c.save(); c.globalAlpha=.35; c.fillStyle='#0b0c0d'; c.beginPath(); c.ellipse(x+dir*barrel*0.5,y,barrel*0.6,R*0.86,0,0,7); c.fill(); c.restore(); } }
+  if(barrel>1){ c.save(); c.globalAlpha=.3; c.fillStyle='#0b0c0d'; c.beginPath(); c.ellipse(x+dir*barrel*0.4,y,barrel*0.5,R*0.8,0,0,7); c.fill(); c.restore(); } }
 
 function setupCanvas(cv){ const d=Math.min(2,window.devicePixelRatio||1); cv.width=CW*d; cv.height=CH*d; const x=cv.getContext('2d'); x.setTransform(d,0,0,d,0,0); return x; }
 const ctxS=setupCanvas(cvS), ctxB=setupCanvas(cvB);
 
-function drawWheel(c,x,y,rim,cover,img,cal,rot,tint){
+function drawWheel(c,x,y,rim,cover,img,cal,rot,tint,shadow){
   const R=Math.max(cover,rim)+1;
-  /* soft ground shadow so the wheel sits in the photo instead of floating on it */
-  c.save(); c.globalAlpha=.45; let sh=c.createRadialGradient(x,y+R*.92,R*.15,x,y+R*.92,R*1.1);
+  /* soft ground shadow for demo renders; real photos already have their own */
+  if(shadow!==false){ c.save(); c.globalAlpha=.45; let sh=c.createRadialGradient(x,y+R*.92,R*.15,x,y+R*.92,R*1.1);
   sh.addColorStop(0,'rgba(0,0,0,.55)'); sh.addColorStop(1,'rgba(0,0,0,0)'); c.fillStyle=sh;
-  c.beginPath(); c.ellipse(x,y+R*.92,R*1.15,R*.28,0,0,7); c.fill(); c.restore();
+  c.beginPath(); c.ellipse(x,y+R*.92,R*1.15,R*.28,0,0,7); c.fill(); c.restore(); }
   /* feathered tyre disc: solid inside, fades over the last 6% so the photo edge blends */
   let cg=c.createRadialGradient(x,y,R*.92,x,y,R*1.03); cg.addColorStop(0,'#17181a'); cg.addColorStop(.6,'#17181a'); cg.addColorStop(1,'rgba(23,24,26,0)');
   c.fillStyle=cg; c.beginPath(); c.arc(x,y,R*1.03,0,7); c.fill();
@@ -426,7 +426,7 @@ function localTint(c,x,y,r){ try{ const t=c.getTransform(); x=x*t.a+t.e; y=y*t.d
 /* bounding boxes of the wheel overlays (canvas px) from the last build render, used for partial redraws */
 let lastRects=[];
 function wheelRects(car){ if(!car||!car.im) return []; const s=scaleOf(car), ox=(CW-car.im.width*s)/2, oy=(CH-car.im.height*s)/2;
-  return car.hubs.map((hb,i)=>{ const R=(car.rims?rimOf(car,i)*(car.tr||1.28):car.tire)*s*1.35; return [ox+hb[0]*s-R,oy+hb[1]*s-R,2*R,2*R+R*.5]; }); }
+  return car.hubs.map((hb,i)=>{ const R=(car.id==='own'?rimOf(car,i)*Math.max(1.25,(car.tr||1.12)):car.tire)*s*1.35; return [ox+hb[0]*s-R,oy+hb[1]*s-R,2*R,2*R+R*.5]; }); }
 function render(c,variant,partial){
   const car=C();
   if(partial&&variant==='build'){ const now=wheelRects(car); c.save(); c.beginPath(); [...lastRects,...now].forEach(r=>c.rect(Math.floor(r[0])-6,Math.floor(r[1])-6,Math.ceil(r[2])+12,Math.ceil(r[3])+12)); c.clip(); lastRects=now; }
@@ -443,13 +443,14 @@ function render(c,variant,partial){
   const near=rimOf(car,0)>=rimOf(car,1)?0:1, dir=Math.sign(car.hubs[1-near][0]-car.hubs[near][0])||1;
   car.hubs.forEach((hb,i)=>{
     const x=ox+hb[0]*s, y=oy+hb[1]*s, r0=rimOf(car,i)*s, sq=sqOf(car,i);
-    const cover=car.rims?r0*(car.tr||1.28):car.tire*s;
+    /* own photo: keep the real tyre, only cover a little past the stock rim lip; demo renders use their tyre radius */
+    const own=car.id==='own', cover=own?r0*(car.tr||1.12):car.tire*s;
     /* tyre outer size stays the same, a bigger rim only grows inside it */
-    const nr=Math.min(r0*(p.rim+1)/(car.origRim+1), cover*0.94);
+    const nr=Math.min(r0*(p.rim+1)/(car.origRim+1), own?r0*1.2:cover*0.94);
     const tint=car.id==='own'?thumbTint(car,hb[0],hb[1],rimOf(car,i))-(1-sq)*0.35:0;
     if(sq<1) drawCover(c,x,y,Math.max(cover,nr),sq,dir);
     c.save(); c.translate(x,y); c.scale(sq,1); c.translate(-x,-y);
-    drawWheel(c,x,y,nr,cover,imgs[p.id],CALS[S.cal].c,p.rot[i]+roll,tint);
+    drawWheel(c,x,y,nr,cover,imgs[p.id],CALS[S.cal].c,p.rot[i]+roll,tint,!own);
     c.restore();
   });
   if(partial&&variant==='build') c.restore();
@@ -516,7 +517,7 @@ function sync(){
     ['#m0','#m1'].forEach((id,i)=>{ const m=$(id); m.hidden=!(S.adj&&S.view!=='sbs'); const r=rimOf(car,i)*s, sq=sqOf(car,i);
       m.style.left=((ox+car.hubs[i][0]*s)/CW*100)+'%'; m.style.top=((oy+car.hubs[i][1]*s)/CH*100)+'%'; m.style.width=(2*r*sq/CW*100)+'%'; m.style.height=(2*r/CH*100)+'%';
       $('#mr'+i).value=Math.round(r); $('#sq'+i).value=Math.round(sq*100); });
-    $('#curRim').value=car.origRim; $('#tr').value=Math.round((car.tr||1.28)*100); $('#changePhoto').hidden=!own; }
+    $('#curRim').value=car.origRim; $('#tr').value=Math.round((car.tr||1.12)*100); $('#changePhoto').hidden=!own; }
   const rows=[['Vehicle',car?car.name:'Your photo'],['Wheels',p.name],['Size',p.spec],['Finish',p.finish],['Calipers',CALS[S.cal].name]];
   $('#sum').innerHTML=rows.map(([k,x])=>`<dt>${k}</dt><dd>${x}</dd>`).join('');
   $('#total').textContent=fmt(p.price*4);
@@ -576,7 +577,7 @@ function useOwnPhoto(im){
   S.own={id:'own',name:'Your vehicle',short:'your car',bolt:null,im,bg:prep.bg,sm:prep.sm,smk:prep.k,
     hubs:keep?keep.hubs:[[im.width*.2,im.height*.72],[im.width*.8,im.height*.72]],
     rims:keep?keep.rims:[im.height*.09,im.height*.09], rim:keep?keep.rim:im.height*.09, tire:keep?keep.tire:im.height*.128,
-    sq:keep?keep.sq:[1,1], tr:keep?keep.tr:1.28, origRim:keep?keep.origRim:18};
+    sq:keep?keep.sq:[1,1], tr:keep?keep.tr:1.12, origRim:keep?keep.origRim:18};
   S.car='own'; S.adj=true; if(S.view==='sbs') S.view='split'; sync(); draw(); scan('Drag the rings onto both wheels, then match size and angle');
 }
 $('#file').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
