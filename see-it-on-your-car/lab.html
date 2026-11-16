@@ -9,7 +9,7 @@ const yaws=[0,.35,.7,-.7], c=document.getElementById('c').getContext('2d'); cons
 c.fillStyle='#8a8f98'; c.fillRect(0,0,1500,900);
 const load=id=>new Promise(r=>{const i=new Image(); i.onload=()=>r(i); i.src=(new URLSearchParams(location.search).get('dir')||'wheel-overlays')+'/'+id+'.webp';});
 for(let k=0;k<ids.length;k++){ const img=await load(ids[k]); c.drawImage(img,1290,45+k*300,210,210);
-  yaws.forEach((y,j)=>{ const R=+(new URLSearchParams(location.search).get('R')||105), s=W.render({product:{id:ids[k],finish:ids[k]==='laguna'?'Gloss Black Milled':'Gloss Black'},img,radius:R,scale:1,yaw:y,pitch:.05,rot:.2,caliper:'#d3141d',tyre:j===0?1.42:(j===4?0:1.3)});
+  yaws.forEach((y,j)=>{ const R=+(new URLSearchParams(location.search).get('R')||105), s=W.render({product:{id:ids[k],finish:ids[k]==='laguna'?'Gloss Black Milled':'Gloss Black'},img,radius:R,scale:1,yaw:y,pitch:.05,rot:.2,caliper:'#d3141d',tyre:j===0?1.42:(j>=2?0:1.3)});
     c.drawImage(s.canvas,s.sx,s.sy,s.px,s.px,150+j*300-s.half,150+k*300-s.half,s.half*2,s.half*2); }); }
 window.done=true;
 </script>

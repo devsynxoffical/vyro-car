@@ -95,21 +95,23 @@ function lathe(points, mat) { // points: [radius, z] revolved around the wheel a
 }
 
 function buildBarrel(m, rim, fin) {
-  const c = rim.clone().multiplyScalar(.5);
-  const mat = new THREE.MeshStandardMaterial({ color: c, metalness: Math.max(.5, fin.metalness), roughness: Math.min(.5, fin.roughness + .12), side: THREE.DoubleSide, envMapIntensity: .7 });
+  /* the inside of the barrel is seen through the spokes and is always in shadow */
+  const c = rim.clone().multiplyScalar(.14); const mx = Math.max(c.r, c.g, c.b); if (mx > .06) c.multiplyScalar(.06 / mx);
+  const mat = new THREE.MeshStandardMaterial({ color: c, metalness: .5, roughness: .5, side: THREE.DoubleSide, envMapIntensity: .22 });
   const w = m.width, i = m.lip - .03;
   return lathe([[1.0, 0], [1.0, -.03], [i, -.05], [i - .02, -.12], [i - .04, -w * .55], [i - .01, -w + .06], [i + .03, -w], [1.0, -w]], mat);
 }
 
 function buildBrake(m) {
   const g = new THREE.Group(), z = -m.width * .52;
-  const discMat = new THREE.MeshStandardMaterial({ color: 0x9a9da3, metalness: .35, roughness: .5, envMapIntensity: .5 });
+  /* everything behind the spokes sits in the wheel's own shadow, so it is kept dim */
+  const discMat = new THREE.MeshStandardMaterial({ color: 0x26282b, metalness: .3, roughness: .5, envMapIntensity: .22 });
   const disc = new THREE.Mesh(new THREE.RingGeometry(.27, .68, 64), discMat); disc.position.z = z; g.add(disc);
   const hat = new THREE.Mesh(new THREE.CylinderGeometry(.27, .29, .14, 40), new THREE.MeshStandardMaterial({ color: 0x25262a, metalness: .6, roughness: .55 }));
   hat.rotation.x = Math.PI / 2; hat.position.z = z + .07; g.add(hat);
   const back = new THREE.Mesh(new THREE.CircleGeometry(m.lip, 48), new THREE.MeshBasicMaterial({ color: 0x060607 }));
   back.position.z = -m.width * .9; g.add(back);
-  const calMat = new THREE.MeshStandardMaterial({ color: 0xd3141d, metalness: .25, roughness: .4, envMapIntensity: .6 });
+  const calMat = new THREE.MeshStandardMaterial({ color: 0xd3141d, metalness: .2, roughness: .45, envMapIntensity: .3 });
   const shape = new THREE.Shape(); const a0 = .42, a1 = 1.08, r0 = .47, r1 = .72;
   shape.absarc(0, 0, r1, a0, a1, false); shape.absarc(0, 0, r0, a1, a0, true);
   const cal = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: .16, bevelEnabled: true, bevelSize: .015, bevelThickness: .015, bevelSegments: 2, curveSegments: 20 }), calMat);
@@ -173,7 +175,9 @@ export class Wheel3D {
     M.brake.calMat.color.set(o.caliper || '#6b6f76');
     this.root.rotation.set(o.pitch || 0, o.yaw || 0, 0);
     const ext = Math.max(o.tyre || 0, 1.06) * 1.12 + Math.abs(Math.sin(o.yaw || 0)) * M.m.width * .6;   // half extent in rim radii
-    let px = Math.ceil(2 * ext * o.radius * (o.scale || 1)), q = 1; if (px > MAX_TEX) { q = MAX_TEX / px; px = MAX_TEX; }
+    /* supersample: small on-screen wheels are rendered at 2-3x and scaled down, which keeps thin spokes clean */
+    const base = 2 * ext * o.radius * (o.scale || 1), ss = Math.max(1.5, Math.min(3, 520 / base));
+    let px = Math.min(MAX_TEX, Math.ceil(base * ss));
     this.cam.left = -ext; this.cam.right = ext; this.cam.top = ext; this.cam.bottom = -ext; this.cam.updateProjectionMatrix();
     this.r.toneMappingExposure = o.exposure || 1;
     this.key.position.set((o.lightX || -.4) * 3, 2.2, 2.4);
