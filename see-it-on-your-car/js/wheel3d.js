@@ -152,7 +152,11 @@ export class Wheel3D {
     const face = buildFace(img, m, fin), spin = new THREE.Group(), group = new THREE.Group();
     spin.add(face.mesh, buildBarrel(m, face.rim, fin));
     const brake = buildBrake(m); group.add(spin, brake.group);
-    M = { group, spin, brake, m, tris: face.tris, tyre: null, tyreKey: 0 }; this.models.set(product.id, M); return M;
+    M = { group, spin, brake, m, tris: face.tris, tyre: null, tyreKey: 0 }; this.models.set(product.id, M);
+    /* keep GPU memory flat when browsing a large catalog: drop the oldest models */
+    while (this.models.size > 6) { const [id, old] = this.models.entries().next().value; if (old === this.current) break; this.models.delete(id);
+      old.group.traverse(o => { if (o.geometry && o !== old.tyre) o.geometry.dispose(); if (o.material && o !== old.tyre) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); }
+    return M;
   }
   /* tier 1: swap the generated face and barrel for a supplied GLB (unit radius, face towards +z) */
   async loadGLB(product, url) {

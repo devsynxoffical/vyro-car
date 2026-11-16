@@ -110,6 +110,8 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:16p
 .prod[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .thumb{width:68px;height:68px;border-radius:50%;background:radial-gradient(circle,#2a2c31 0 52%,#16171a 53%);display:grid;place-items:center;overflow:hidden}
 .thumb img{width:62px;height:62px}
+.psearch{width:100%;margin:0 0 8px;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font:inherit;font-size:13px;color:var(--fg)}
+body.embed header,body.embed .credits{display:none}
 .prod .nm{font-family:var(--f-d);font-weight:600;font-size:15px;line-height:1.25}
 .prod .sp{display:block;font-family:var(--f-m);font-size:11px;color:var(--mute);margin-top:2px}
 .prod .pr{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;font-variant-numeric:tabular-nums}
@@ -209,13 +211,15 @@ form .f{margin-bottom:10px}
           <button role="tab" data-tab="cal" aria-selected="false">Brake calipers</button>
         </div>
         <div data-pane="wheels">
+          <input type="search" id="pSearch" class="psearch" placeholder="Search wheels by name, size or bolt pattern" aria-label="Search wheels" hidden>
           <div class="prod-filter" id="pFilter" role="group" aria-label="Filter wheels">
-            <button class="pf-btn active" data-f="all">All (5)</button>
+            <button class="pf-btn active" data-f="all" id="pAllBtn">All</button>
             <button class="pf-btn" data-f="fit" id="pFitBtn">Fits vehicle</button>
             <button class="pf-btn" data-f="6x139">6-Lug SUV</button>
             <button class="pf-btn" data-f="5lug">5-Lug</button>
           </div>
           <div id="prods"></div>
+          <button class="linkbtn" id="pMore" type="button" hidden style="margin-top:8px">Show more wheels</button>
           <p class="note">Tire size is kept the same, so a bigger rim means a lower profile tire.</p>
         </div>
         <div data-pane="cal" hidden><div class="sws" id="cals"></div><div class="swl" id="calName"></div></div>
@@ -370,7 +374,7 @@ const CALS = [
   {name:'Nismo orange', c:'#ff6a13'}, {name:'Acid green', c:'#7ccf22'}, {name:'Satin black', c:'#1b1c1f'}
 ];
 const WA_NUM='97466442335', CW=1600, CH=900;
-const S={car:CARS[0].id, prod:'laguna', cal:1, view:'split', split:50, free:3, unlocked:false, roll:1, adj:false, own:null, filter:'all'};
+const S={car:CARS[0].id, prod:'laguna', cal:1, view:'split', split:50, free:3, unlocked:false, roll:1, adj:false, own:null, filter:'all', q:'', limit:24};
 const $=s=>document.querySelector(s);
 const stage=$('#stage'), cvS=$('#cvStock'), cvB=$('#cvBuild');
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -473,6 +477,7 @@ function render(c,variant,partial){
     /* tyre outer size stays the same, a bigger rim only grows inside it */
     const nr=Math.min(r0*(p.rim+1)/(car.origRim+1), own?r0*1.2:cover*0.94);
     const tint=car.id==='own'?thumbTint(car,hb[0],hb[1],rimOf(car,i))-(1-sq)*0.35:0;
+    if(!imgs[p.id]) return;   /* product photo still loading */
     if(W3D&&W3D.ok&&imgs[p.id]){ draw3D(c,car,p,i,x,y,r0,nr,sq,dir,cover,tint,p.rot[i]+roll); return; }
     if(sq<1) drawCover(c,x,y,Math.max(cover,nr),sq,dir);
     c.save(); c.translate(x,y); c.scale(sq,1); c.translate(-x,-y);
@@ -496,9 +501,8 @@ function build(){
   const up=document.createElement('button'); up.className='vc up'; up.dataset.id='own';
   up.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><b>Your own photo</b><small>Flat side view, both wheels visible</small>`;
   up.onclick=()=>{ if(S.own&&S.car!=='own'){ S.car='own'; S.adj=false; sync(); draw(); scan('Fitting '+P().name); } else $('#file').click(); }; st.append(up);
-  const pr=$('#prods'); PRODUCTS.forEach(p=>{ const b=document.createElement('button'); b.className='prod'; b.dataset.id=p.id;
-    b.innerHTML=`<span class="thumb"><img alt="" src="${IMG[p.id]}"></span><span style="min-width:0"><span class="nm">${p.name}</span><span class="sp">${p.spec}</span><span class="sp">${p.finish}</span><span class="pr"><b>${fmt(p.price)}</b><span class="mini"></span></span></span>`;
-    b.onclick=()=>{ if(S.prod===p.id) return; S.prod=p.id; sync(); roll(); scan('Fitting '+p.name); }; pr.append(b); });
+  $('#pSearch').hidden=PRODUCTS.length<9; $('#pSearch').oninput=e=>{ S.q=e.target.value.trim().toLowerCase(); S.limit=24; sync(); };
+  $('#pMore').onclick=()=>{ S.limit+=24; sync(); };
   const cl=$('#cals'); CALS.forEach((k,i)=>{ const b=document.createElement('button'); b.className='sw'; b.style.background=k.c; b.dataset.i=i; b.setAttribute('aria-label',k.name); b.onclick=()=>{S.cal=i;sync();render(ctxB,'build');}; cl.append(b); });
   document.querySelectorAll('.pf-btn').forEach(btn=>{
     btn.onclick = () => { S.filter = btn.dataset.f; sync(); };
@@ -506,8 +510,34 @@ function build(){
   document.querySelectorAll('[data-tab]').forEach(t=>t.onclick=()=>{ document.querySelectorAll('[data-tab]').forEach(x=>x.setAttribute('aria-selected',String(x===t))); document.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==t.dataset.tab); });
   document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{ S.view=b.dataset.view; sync(); });
 }
+const thumbOf=p=>p.texture||IMG[p.id]||'';
+function prodMatches(q,car){
+  if(S.filter==='fit'&&!(car&&car.bolt&&q.bolt===car.bolt)) return false;
+  if(S.filter==='6x139'&&q.bolt!=='6x139.7') return false;
+  if(S.filter==='5lug'&&!q.bolt.startsWith('5x')) return false;
+  if(S.q){ const hay=(q.name+' '+q.spec+' '+q.finish+' '+q.bolt).toLowerCase(); if(!S.q.split(/\s+/).every(w=>hay.includes(w))) return false; }
+  return true;
+}
+let prodKey='';
+function renderProds(car){
+  const pr=$('#prods'), all=PRODUCTS.filter(q=>prodMatches(q,car)), page=all.slice(0,S.limit); pr.textContent='';
+  page.forEach(p=>{ const b=document.createElement('button'); b.className='prod'; b.dataset.id=p.id;
+    b.innerHTML=`<span class="thumb"><img alt="" loading="lazy" src="${thumbOf(p)}"></span><span style="min-width:0"><span class="nm"></span><span class="sp"></span><span class="sp"></span><span class="pr"><b>${fmt(p.price)}</b><span class="mini"></span></span></span>`;
+    const t=b.querySelectorAll('.nm,.sp'); t[0].textContent=p.name; t[1].textContent=p.spec; t[2].textContent=p.finish;
+    b.onclick=()=>selectProd(p.id); pr.append(b); });
+  if(!page.length){ const e=document.createElement('p'); e.className='note'; e.textContent='No wheels match. Clear the search or filter.'; pr.append(e); }
+  $('#pMore').hidden=all.length<=S.limit; $('#pMore').textContent=`Show more wheels (${all.length-page.length} more)`;
+}
+/* product photos are loaded when a wheel is first selected, so the catalog can be large */
+function ensureProd(id){ if(imgs[id]) return Promise.resolve(); const p=PRODUCTS.find(x=>x.id===id);
+  return new Promise(res=>{ const i=new Image(); i.onload=()=>{ imgs[id]=i; res(); }; i.onerror=res; i.src=thumbOf(p); }); }
+function selectProd(id){ if(S.prod===id||!PRODUCTS.find(x=>x.id===id)) return; S.prod=id; sync();
+  ensureProd(id).then(()=>{ if(S.prod!==id) return; if(W3D&&W3D.ok&&P().model3d&&P().model3d.glb&&!P()._glb){ P()._glb=1; W3D.model(P(),imgs[id]); W3D.loadGLB(P(),P().model3d.glb).then(draw).catch(()=>{}); }
+    roll(); scan('Fitting '+P().name); }); }
 function sync(){
   const car=C(), p=P(), own=S.car==='own';
+  const pk=[S.filter,S.q,S.limit,S.filter==='fit'?(car&&car.bolt)||'':'',PRODUCTS.length].join('|'); if(pk!==prodKey){ prodKey=pk; renderProds(car); }
+  $('#pAllBtn').textContent=`All (${PRODUCTS.length})`;
   const fits = car && car.bolt ? p.bolt===car.bolt : null;
   $('#vehTitle').textContent = car ? car.name : 'Your vehicle';
   $('#vehSub').textContent = own ? 'Your photo' : (car.trim||'');
@@ -522,12 +552,6 @@ function sync(){
     b.setAttribute('aria-pressed',String(q.id===S.prod));
     m.className='mini '+(ok?'ok':'no');
     m.textContent= ok===null?q.bolt:ok?'Fits '+car.short:'Does not fit';
-    let show = true;
-    if(S.filter==='fit') show = !!ok;
-    else if(S.filter==='6x139') show = q.bolt==='6x139.7';
-    else if(S.filter==='5lug') show = q.bolt.startsWith('5x');
-    else if(S.filter==='6x135') show = q.bolt==='6x135';
-    b.hidden = !show;
   });
   document.querySelectorAll('.pf-btn').forEach(btn=>{
     btn.classList.toggle('active', btn.dataset.f===S.filter);
@@ -636,10 +660,20 @@ function makeCard(){
   $('#renImg').src=cv.toDataURL('image/jpeg',.9); openM('#renderM');
 }
 
-build();
-const loads=[...PRODUCTS.map(p=>[p.id,IMG[p.id],imgs]),...CARS.map(c=>[c.id,c.src,carImgs])]
-  .map(([id,src,store])=>new Promise(res=>{ const i=new Image(); i.onload=()=>{store[id]=i;res();}; i.onerror=res; i.src=src; }));
-Promise.all(loads).then(()=>document.fonts?document.fonts.ready:null).then(()=>{
+/* catalog.json (built by tools/build_catalog.py) replaces the embedded product list when it is available */
+async function loadCatalog(){ try{ const r=await fetch('catalog.json',{cache:'no-cache'}); if(!r.ok) return; const cat=await r.json();
+    if(cat&&cat.products&&cat.products.length){ PRODUCTS.length=0; cat.products.forEach(p=>PRODUCTS.push(p)); } }catch(e){} }
+(async function init(){
+  await loadCatalog();
+  /* deep links: ?wheel=<id>&car=<id>&embed=1 (used by embed.js on store product pages) */
+  const qs=new URLSearchParams(location.search), w=qs.get('wheel'), cq=qs.get('car');
+  if(w&&PRODUCTS.find(p=>p.id===w||p.sku===w||(p.url||'').endsWith('/'+w))) S.prod=PRODUCTS.find(p=>p.id===w||p.sku===w||(p.url||'').endsWith('/'+w)).id;
+  if(!PRODUCTS.find(p=>p.id===S.prod)) S.prod=PRODUCTS[0].id;
+  if(cq&&CARS.find(c=>c.id===cq)) S.car=cq;
+  if(qs.get('embed')) document.body.classList.add('embed');
+  build();
+  const loads=[ensureProd(S.prod),...CARS.map(c=>new Promise(res=>{ const i=new Image(); i.onload=()=>{carImgs[c.id]=i;res();}; i.onerror=res; i.src=c.src; }))];
+  await Promise.all(loads); if(document.fonts) await document.fonts.ready;
   CARS.forEach(c=>c.im=carImgs[c.id]); sync(); draw(); roll(); scan('Fitting '+P().name);
-});
+})();
 </script>
