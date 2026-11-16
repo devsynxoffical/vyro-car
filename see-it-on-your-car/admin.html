@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>Vyro-Car catalog review</title>
+<style>
+:root{--bg:#f4f5f7;--fg:#111318;--mute:#5f6775;--line:#dfe2e8;--card:#fff;--accent:#e8381a;--ok:#12805c;--warn:#b45309}
+@media (prefers-color-scheme:dark){:root{--bg:#14161a;--fg:#eceef2;--mute:#9aa2b1;--line:#2a2e36;--card:#1b1e24}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:20px 16px 8px;max-width:1280px;margin:0 auto}h1{font-size:20px;margin:0 0 4px}p.sub{margin:0;color:var(--mute)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;max-width:1280px;margin:12px auto;padding:0 16px}
+.bar input,.bar select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);font:inherit}
+.stat{color:var(--mute);margin-left:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;max-width:1280px;margin:0 auto;padding:0 16px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;min-width:0}
+.card h2{font-size:15px;margin:0 0 2px;overflow-wrap:anywhere}.card small{color:var(--mute);font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+.views{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.views canvas,.views img{width:100%;aspect-ratio:1;border-radius:10px;background:repeating-conic-gradient(#8883 0 25%,transparent 0 50%) 0 0/16px 16px}
+.views canvas{background:#8a8f98;cursor:ew-resize;touch-action:none}
+.flags{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.flag{font-size:11.5px;padding:2px 8px;border-radius:999px;background:#b4530922;color:var(--warn);border:1px solid #b4530955}.flag.ok{background:#12805c22;color:var(--ok);border-color:#12805c55}
+label{display:grid;grid-template-columns:96px 1fr 38px;gap:8px;align-items:center;font-size:12px;color:var(--mute);margin-top:4px}
+textarea{width:100%;margin-top:8px;font:11.5px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);padding:6px;resize:vertical}
+.empty{max-width:1280px;margin:40px auto;padding:0 16px;color:var(--mute)}
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script></head>
+<body>
+<header><h1>Catalog review</h1><p class="sub">Every wheel built by <code>tools/build_catalog.py</code>, as the studio will render it. Drag a 3D preview to turn it. Adjust the sliders, then copy the override into that wheel's entry in <code>catalog/products.json</code> and rebuild.</p></header>
+<div class="bar"><input id="q" type="search" placeholder="Search" aria-label="Search wheels">
+<select id="f" aria-label="Filter"><option value="">All wheels</option><option value="flagged">Needs review</option><option value="clean">No flags</option></select><span class="stat" id="stat"></span></div>
+<div class="grid" id="grid"></div><p class="empty" id="empty" hidden>catalog.json was not found. Run <code>python3 tools/build_catalog.py</code> first.</p>
+<script type="module">
+import { getWheel3D, MODEL_DEFAULTS } from './js/wheel3d.js';
+const HELP={angled_source:'Photo is a three-quarter shot; the face was rectified. Check the pattern is not distorted.',outline_uncertain:'The wheel outline was hard to find. Check the texture is centred.',low_resolution:'Source photo is small; the wheel will look soft in HD renders.',mostly_solid:'Few or no openings. Fine for steel wheels; otherwise the gaps were not cut out.',mostly_empty:'Very little of the wheel was kept. Check the cutout.',irregular_pattern:'No clear repeating spoke pattern was found. Usually fine for mesh designs.'};
+const W=getWheel3D(), grid=document.getElementById('grid'); let cat=null;
+try{ cat=await (await fetch('catalog.json',{cache:'no-cache'})).json(); }catch(e){}
+if(!cat){ document.getElementById('empty').hidden=false; }
+const load=src=>new Promise(r=>{ const i=new Image(); i.onload=()=>r(i); i.onerror=()=>r(null); i.src=src; });
+function card(p){
+  const el=document.createElement('div'); el.className='card'; const m={...MODEL_DEFAULTS,...p.model3d}; let yaw=.55, img=null, ver=0;
+  el.innerHTML=`<h2></h2><small></small><div class="flags"></div><div class="views"><img alt="Normalised texture" loading="lazy"><canvas width="360" height="360" aria-label="3D preview"></canvas></div>
+  <label>Concavity<input type="range" min="0" max="30" data-k="concavity"><output></output></label><label>Spoke depth<input type="range" min="2" max="25" data-k="spokeDepth"><output></output></label><label>Barrel width<input type="range" min="50" max="115" data-k="width"><output></output></label>
+  <textarea rows="2" readonly aria-label="Override JSON"></textarea>`;
+  el.querySelector('h2').textContent=p.name; el.querySelector('small').textContent=`${p.id} · ${p.spec||''} · ${p.qa.spokes} spokes · ${Math.round(p.qa.coverage*100)}% solid`;
+  const fl=el.querySelector('.flags'); (p.qa.flags.length?p.qa.flags:['ok']).forEach(f=>{ const s=document.createElement('span'); s.className='flag'+(f==='ok'?' ok':''); s.textContent=f==='ok'?'No issues found':f.replace(/_/g,' '); s.title=HELP[f]||''; fl.append(s); });
+  const im=el.querySelector('img'), cv=el.querySelector('canvas'), cx=cv.getContext('2d'), ta=el.querySelector('textarea'); im.src=p.texture;
+  const draw=()=>{ if(!img||!W.ok) return; const prod={...p,id:p.id+'@admin'+ver,model3d:m};
+    const s=W.render({product:prod,img,radius:118,scale:1,yaw,pitch:.06,rot:.15,caliper:'#d3141d',tyre:0}); cx.clearRect(0,0,360,360); cx.drawImage(s.canvas,s.sx,s.sy,s.px,s.px,180-s.half,180-s.half,s.half*2,s.half*2);
+    const o={}; for(const k of ['concavity','spokeDepth','width']) if(Math.abs(m[k]-({...MODEL_DEFAULTS,...p.model3d})[k])>.004||p.model3d[k]!=null) o[k]=+m[k].toFixed(2); ta.value='"model3d": '+JSON.stringify(o); };
+  el.querySelectorAll('input[type=range]').forEach(r=>{ const k=r.dataset.k, out=r.nextElementSibling; r.value=Math.round(m[k]*100); out.textContent=m[k].toFixed(2);
+    r.oninput=()=>{ m[k]=r.value/100; out.textContent=m[k].toFixed(2); ver++; draw(); }; });
+  let drag=null; cv.onpointerdown=e=>{ drag={x:e.clientX,y:yaw}; cv.setPointerCapture(e.pointerId); }; cv.onpointermove=e=>{ if(!drag) return; yaw=Math.max(-1.2,Math.min(1.2,drag.y+(e.clientX-drag.x)/120)); draw(); }; cv.onpointerup=()=>drag=null;
+  /* build the 3D preview only when the card scrolls into view, so thousands of wheels stay cheap */
+  new IntersectionObserver((es,ob)=>{ if(es[0].isIntersecting){ ob.disconnect(); load(p.texture).then(i=>{ img=i; draw(); }); } },{rootMargin:'200px'}).observe(el);
+  return el;
+}
+function render(){ if(!cat) return; const q=document.getElementById('q').value.trim().toLowerCase(), f=document.getElementById('f').value;
+  const list=cat.products.filter(p=>(!q||(p.name+' '+p.id+' '+(p.spec||'')).toLowerCase().includes(q))&&(!f||(f==='flagged')===(p.qa.flags.length>0)));
+  grid.textContent=''; list.slice(0,120).forEach(p=>grid.append(card(p)));
+  const flagged=cat.products.filter(p=>p.qa.flags.length).length;
+  document.getElementById('stat').textContent=`${cat.products.length} wheels · ${flagged} need review · ${(cat.failed||[]).length} failed`+(list.length>120?` · showing 120 of ${list.length}`:''); }
+document.getElementById('q').oninput=render; document.getElementById('f').onchange=render; render(); window.done=true;
+</script></body></html>
