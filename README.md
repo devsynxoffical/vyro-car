@@ -61,14 +61,23 @@ Or open `see-it-on-your-car/index.html` directly in any web browser.
 ```text
 vyro-car/
 ├── package.json               # NPM scripts (npm run dev)
-├── README.md                  # Project documentation
-├── index.html                 # Root redirect to studio
-└── see-it-on-your-car/        # Studio application
-    ├── index.html             # Light theme studio application
-    ├── dark-version-v1.html   # Dark theme studio variant
+├── requirements.txt           # Python packages for the catalog tools
+├── catalog/products.json      # Source list of wheels (edit or import)
+├── tools/
+│   ├── import_feed.py         # Store feed -> catalog/products.json
+│   └── build_catalog.py       # Product photos -> textures, 3D params, quality flags
+└── see-it-on-your-car/        # Studio application (deployed folder)
+    ├── index.html             # Studio
+    ├── admin.html             # Catalog review page
+    ├── embed.js               # "See it on your car" button for store product pages
+    ├── catalog.json           # Built catalog (generated)
+    ├── js/wheel3d.js          # 3D wheel builder and renderer
+    ├── js/detect.js           # Automatic wheel detection
+    ├── vendor/                # three.js (MIT)
+    ├── wheel-models/          # Normalised wheel textures (generated) and optional .glb models
+    ├── wheel-overlays/        # Original product cutouts
     ├── vehicles-manifest.json # Vehicle hub coordinates & specs
     ├── cars/                  # Demo vehicle JPGs & thumbnails
-    ├── wheel-overlays/        # Keyed transparent wheel overlays (18 wheels)
     └── source-renders-2k/     # Original 2K studio vehicle renders
 ```
 

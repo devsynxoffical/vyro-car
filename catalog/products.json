@@ -1,0 +1,80 @@
+{
+ "_comment": "Source list for tools/build_catalog.py. One entry per wheel. 'image' is a local path or URL of the product photo. Optional per-wheel overrides: face_ellipse [cx,cy,rx,ry] in source pixels, model3d {concavity,spokeDepth,width,lip,glb}.",
+ "products": [
+  {
+   "id": "laguna",
+   "name": "Weld Racing Laguna 6",
+   "spec": "22 x 10.5 · ET32 · 6x139.7",
+   "finish": "Gloss Black Milled, Diamond Lip",
+   "rim": 22,
+   "bolt": "6x139.7",
+   "price": 2844.99,
+   "rot": [
+    0.15,
+    0.62
+   ],
+   "url": "https://topperformance.qa/products/weld-racing-laguna-6-22x10-5-6x139-7-bp-et32-bs-7-gloss-black-milled-wheel-diamond-lip",
+   "image": "see-it-on-your-car/wheel-overlays/laguna.webp"
+  },
+  {
+   "id": "solana",
+   "name": "Weld Solana Drag",
+   "spec": "20 x 7 · ET13 · 6x139.7",
+   "finish": "Gloss Black",
+   "rim": 20,
+   "bolt": "6x139.7",
+   "price": 2380.99,
+   "rot": [
+    0.2,
+    0.75
+   ],
+   "url": "https://topperformance.qa/products/weld-solana-drag-20x7-6x139-7-bp-et13-4-51-bore-gloss-black",
+   "image": "see-it-on-your-car/wheel-overlays/solana.webp"
+  },
+  {
+   "id": "vossen_hf6_3",
+   "name": "Vossen HF6-3 Hybrid Forged",
+   "spec": "22 x 9.5 · ET20 · 6x139.7",
+   "finish": "Gloss Black, Deep Face",
+   "rim": 22,
+   "bolt": "6x139.7",
+   "price": 3424.99,
+   "rot": [
+    0.12,
+    0.58
+   ],
+   "url": "https://topperformance.qa/products/vossen-hf6-3-22x9-5-6x139-7-et20-deep-face-106-1-gloss-black-wheel",
+   "image": "see-it-on-your-car/wheel-overlays/vossen_hf6_3.webp"
+  },
+  {
+   "id": "fifteen52_neito",
+   "name": "fifteen52 Neito HD Overland",
+   "spec": "17 x 8.5 · ET0 · 5x150",
+   "finish": "Asphalt Black",
+   "rim": 17,
+   "bolt": "5x150",
+   "price": 1616.99,
+   "rot": [
+    0.18,
+    0.68
+   ],
+   "url": "https://topperformance.qa/products/fifteen52-neito-hd-17x8-5-5x150-0mm-et-110-5mm-center-bore-asphalt-black-wheel",
+   "image": "see-it-on-your-car/wheel-overlays/fifteen52_neito.webp"
+  },
+  {
+   "id": "fifteen52_analog",
+   "name": "fifteen52 Analog HD Heavy Duty",
+   "spec": "17 x 8.5 · ET0 · 5x150",
+   "finish": "Machined Clear",
+   "rim": 17,
+   "bolt": "5x150",
+   "price": 1616.99,
+   "rot": [
+    0.1,
+    0.5
+   ],
+   "url": "https://topperformance.qa/products/fifteen52-analog-hd-17x8-5-5x150-bp-0mm-et-110-3mm-cb-4-75in-bs-machined-clear-wheel",
+   "image": "see-it-on-your-car/wheel-overlays/fifteen52_analog.webp"
+  }
+ ]
+}
